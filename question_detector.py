@@ -36,8 +36,8 @@ DIRECT_PATTERNS_START = [
 DIRECT_PATTERNS_ANY = [
     "tell me about yourself",
     "walk me through your",
-    "your greatest strength",
-    "your greatest weakness",
+    "your greatest", "your biggest",
+    "your strength", "your weakness",
     "why this company",
     "why this role",
     "where do you see yourself",
@@ -77,15 +77,15 @@ def fast_filter(text: str) -> str | None:
     if len(lower) < 15 or len(lower.split()) > 80:
         return None
 
-    # Check lecture/statement indicators FIRST
-    for pattern in LECTURE_INDICATORS:
-        if lower.startswith(pattern):
-            return None
-
-    # Check strong patterns at sentence start
+    # Check strong patterns FIRST (direct questions override lecture patterns)
     for pattern in DIRECT_PATTERNS_START:
         if lower.startswith(pattern):
             return "strong"
+
+    # Then check lecture/statement indicators
+    for pattern in LECTURE_INDICATORS:
+        if lower.startswith(pattern):
+            return None
 
     # Check patterns that can be anywhere
     for pattern in DIRECT_PATTERNS_ANY:

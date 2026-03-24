@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.license
+uploads/*
+!uploads/.gitkeep
+screenshots/*
+!screenshots/.gitkeep
+sessions/*
+!sessions/.gitkeep
+.env
+.DS_Store
+test_mic.py

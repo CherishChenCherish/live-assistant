@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Assistant — Real-time Interview AI Coach</title>
+<style>
+  :root{--bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#e6edf3;--dim:#7d8590;--accent:#7c6aef;--green:#3fb950;--yellow:#d29922;--blue:#58a6ff}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,'SF Pro',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+  .container{max-width:900px;margin:0 auto;padding:0 24px}
+
+  /* Hero */
+  .hero{text-align:center;padding:80px 0 60px}
+  .hero h1{font-size:48px;font-weight:800;letter-spacing:-1.5px;margin-bottom:16px;background:linear-gradient(135deg,var(--accent),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .hero p{font-size:20px;color:var(--dim);max-width:600px;margin:0 auto 32px}
+  .hero-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .btn{padding:12px 28px;border-radius:10px;font-size:15px;font-weight:600;text-decoration:none;transition:all .2s;display:inline-block;border:none;cursor:pointer}
+  .btn-primary{background:var(--accent);color:#fff}
+  .btn-primary:hover{filter:brightness(1.15)}
+  .btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}
+  .btn-outline:hover{border-color:var(--accent)}
+
+  /* Demo image */
+  .demo{margin:40px 0;border-radius:12px;overflow:hidden;border:1px solid var(--border);background:var(--surface);padding:20px;text-align:center}
+  .demo-placeholder{background:var(--bg);border-radius:8px;padding:60px;color:var(--dim);font-size:14px}
+
+  /* Features */
+  .features{padding:60px 0}
+  .features h2{text-align:center;font-size:32px;margin-bottom:40px;font-weight:700}
+  .feature-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .feature-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px}
+  .feature-card .icon{font-size:24px;margin-bottom:8px}
+  .feature-card h3{font-size:15px;margin-bottom:6px}
+  .feature-card p{font-size:13px;color:var(--dim);line-height:1.5}
+  .feature-card.pro{border-color:var(--accent);position:relative}
+  .feature-card.pro::after{content:"PRO";position:absolute;top:10px;right:10px;background:var(--accent);color:#fff;font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700}
+
+  /* Pricing */
+  .pricing{padding:60px 0;text-align:center}
+  .pricing h2{font-size:32px;margin-bottom:40px;font-weight:700}
+  .pricing-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:700px;margin:0 auto}
+  .price-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px;text-align:left}
+  .price-card.featured{border-color:var(--accent);box-shadow:0 0 30px rgba(124,106,239,.15)}
+  .price-card h3{font-size:20px;margin-bottom:4px}
+  .price-card .price{font-size:36px;font-weight:800;margin:12px 0}
+  .price-card .price span{font-size:14px;font-weight:400;color:var(--dim)}
+  .price-card ul{list-style:none;margin:16px 0;font-size:13px}
+  .price-card ul li{padding:4px 0;color:var(--dim)}
+  .price-card ul li::before{content:"✓ ";color:var(--green)}
+  .price-card ul li.no::before{content:"— ";color:var(--border)}
+  .price-card ul li.no{color:var(--border)}
+
+  /* How it works */
+  .how{padding:60px 0}
+  .how h2{text-align:center;font-size:32px;margin-bottom:40px;font-weight:700}
+  .steps{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px}
+  .step{text-align:center;padding:20px}
+  .step .num{width:36px;height:36px;border-radius:50%;background:var(--accent);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;margin-bottom:12px}
+  .step h3{font-size:15px;margin-bottom:6px}
+  .step p{font-size:13px;color:var(--dim)}
+
+  /* Footer */
+  .footer{padding:40px 0;border-top:1px solid var(--border);text-align:center;color:var(--dim);font-size:12px}
+
+  @media(max-width:640px){
+    .hero h1{font-size:32px}
+    .feature-grid,.pricing-grid,.steps{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="hero">
+    <h1>Live Assistant</h1>
+    <p>Real-time AI interview coach. Transcribes conversations, detects questions, and generates spoken answers — all in your browser.</p>
+    <div class="hero-btns">
+      <a href="https://github.com/CherishChenCherish/live-assistant/releases" class="btn btn-primary">Download for Mac</a>
+      <a href="#pricing" class="btn btn-outline">View Pricing</a>
+    </div>
+  </div>
+
+  <div class="demo">
+    <div class="demo-placeholder">
+      [ Screenshot / GIF of the app in action ]<br>
+      <small>Real-time transcription on the left, AI-generated responses on the right</small>
+    </div>
+  </div>
+
+  <div class="features">
+    <h2>Features</h2>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="icon">🎙</div>
+        <h3>Real-time Transcription</h3>
+        <p>Powered by Whisper. Captures audio from your mic, Zoom, Teams, or any meeting app. Auto-detects which app you're using.</p>
+      </div>
+      <div class="feature-card pro">
+        <div class="icon">💬</div>
+        <h3>AI Response Generation</h3>
+        <p>Detects real interview questions and generates natural spoken English answers tailored to your background.</p>
+      </div>
+      <div class="feature-card pro">
+        <div class="icon">💻</div>
+        <h3>Technical Interview Support</h3>
+        <p>For coding questions: generates working code + verbal explanation + complexity analysis. Python, SQL, system design.</p>
+      </div>
+      <div class="feature-card pro">
+        <div class="icon">📎</div>
+        <h3>Context Upload</h3>
+        <p>Upload your resume, job description, and interviewer info. The AI uses this to craft personalized, relevant answers.</p>
+      </div>
+      <div class="feature-card pro">
+        <div class="icon">🔮</div>
+        <h3>Follow-up Predictions</h3>
+        <p>Predicts the interviewer's likely next question so you can prepare ahead.</p>
+      </div>
+      <div class="feature-card pro">
+        <div class="icon">🆘</div>
+        <h3>SOS Button</h3>
+        <p>Stuck? Press S for a natural stalling phrase to buy yourself thinking time.</p>
+      </div>
+      <div class="feature-card pro">
+        <div class="icon">📷</div>
+        <h3>Screenshot OCR</h3>
+        <p>Ctrl+V a screenshot of the coding problem. OCR extracts the text and generates a solution.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">⏱</div>
+        <h3>Pace Monitor</h3>
+        <p>Tracks your speaking speed (WPM) and answer length. Stay in the sweet spot — not too fast, not too slow.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="how">
+    <h2>How It Works</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="num">1</div>
+        <h3>Download & Launch</h3>
+        <p>Download the app, run it. Opens in your browser at localhost. No account needed.</p>
+      </div>
+      <div class="step">
+        <div class="num">2</div>
+        <h3>Upload & Configure</h3>
+        <p>Upload your resume and JD. Select your audio device. The app auto-detects your meeting software.</p>
+      </div>
+      <div class="step">
+        <div class="num">3</div>
+        <h3>Interview with Confidence</h3>
+        <p>See real-time transcription and AI-generated answers. Use keyboard shortcuts for seamless control.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="pricing" id="pricing">
+    <h2>Pricing</h2>
+    <div class="pricing-grid">
+      <div class="price-card">
+        <h3>Free</h3>
+        <div class="price">$0</div>
+        <ul>
+          <li>Real-time transcription</li>
+          <li>Meeting app auto-detection</li>
+          <li>Speaking pace monitor</li>
+          <li>Session recording & export</li>
+          <li class="no">AI response generation</li>
+          <li class="no">Technical code answers</li>
+          <li class="no">Follow-up predictions</li>
+          <li class="no">Screenshot OCR</li>
+          <li class="no">SOS stalling phrases</li>
+          <li class="no">Context upload (Resume/JD)</li>
+        </ul>
+        <a href="https://github.com/CherishChenCherish/live-assistant/releases" class="btn btn-outline" style="width:100%;text-align:center;margin-top:12px">Download Free</a>
+      </div>
+      <div class="price-card featured">
+        <h3>Pro</h3>
+        <div class="price">$29 <span>/ year</span></div>
+        <ul>
+          <li>Everything in Free</li>
+          <li>AI response generation</li>
+          <li>Technical code answers</li>
+          <li>Follow-up predictions</li>
+          <li>Keyword hints mode</li>
+          <li>Screenshot OCR</li>
+          <li>Screen monitoring</li>
+          <li>SOS stalling phrases</li>
+          <li>Context upload (Resume/JD)</li>
+          <li>Priority updates</li>
+        </ul>
+        <a href="https://buy.stripe.com/YOUR_LINK" class="btn btn-primary" style="width:100%;text-align:center;margin-top:12px">Get Pro</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>Built by Cherish Chen &mdash; Yale SOM &mdash; <a href="https://github.com/CherishChenCherish/live-assistant" style="color:var(--blue)">GitHub</a></p>
+  </div>
+</div>
+
+</body>
+</html>

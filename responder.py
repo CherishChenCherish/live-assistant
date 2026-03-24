@@ -18,7 +18,7 @@ TECHNICAL_KEYWORDS = [
     "two pointer", "sliding window", "stack", "queue", "heap",
     # Languages & tools
     "python", "java", "javascript", "typescript", "sql", "react",
-    "api", "rest", "http", "database", "query",
+    "api", "restful", "rest api", "http", "database", "query",
     # System design
     "system design", "design a", "architecture", "scalab", "load balanc",
     "caching", "microservice", "distributed", "database schema",
@@ -79,27 +79,26 @@ BEHAVIORAL_RULES = """
 
 TECHNICAL_RULES = """
 ## Response Rules (Technical)
-You MUST format your response in EXACTLY this structure:
+You MUST use EXACTLY these three headers. Do NOT skip any.
 
 VERBAL:
-(2-3 sentences explaining your approach — what the interviewer should hear you say out loud)
+I would approach this using a sliding window technique with a hash map to track characters.
 
 CODE:
-```
-(clean, working code with brief inline comments)
-```
+def solution():
+    pass
 
 EXPLAIN:
-(2-3 sentences on time/space complexity, trade-offs, or why you chose this approach)
+This runs in O(n) time and O(min(n,m)) space where m is the charset size.
 
-Rules:
-- Default to Python unless the question specifies another language
-- Code must be clean, readable, and correct
-- Include edge case handling
-- For system design: use text diagrams, describe components
-- For SQL: write the actual query
-- For ML: include relevant sklearn/pytorch code
-- Keep verbal part natural and spoken, not written"""
+IMPORTANT FORMATTING:
+- Start with "VERBAL:" then 2-3 spoken sentences (NO code here)
+- Then "CODE:" then the actual code (NO ``` backticks, just raw code)
+- Then "EXPLAIN:" then 1-2 sentences on complexity/trade-offs
+- Default to Python unless specified otherwise
+- Code must be clean and correct
+- For system design: describe components in VERBAL, show key code in CODE
+- For SQL: put the query in CODE"""
 
 RESPONSE_PROMPT = """Recent conversation:
 {conversation}
@@ -184,9 +183,13 @@ def generate_response(
     if q_type == "technical":
         return _parse_technical_response(raw)
     else:
+        verbal = _clean_behavioral(raw)
+        if len(verbal) > 400:
+            sentences = re.split(r'(?<=[.!?])\s+', verbal)
+            verbal = " ".join(sentences[:5])
         return {
             "type": "behavioral",
-            "verbal": _clean_behavioral(raw),
+            "verbal": verbal,
             "code": None,
             "explain": None,
         }
@@ -227,26 +230,24 @@ def _parse_technical_response(raw: str) -> dict:
     code = ""
     explain = ""
 
-    # Strategy 1: Try structured VERBAL/CODE/EXPLAIN format
-    sections = re.split(r'\n(?:VERBAL|CODE|EXPLAIN)\s*:\s*\n?', raw, flags=re.IGNORECASE)
+    # Strategy 1: Structured VERBAL/CODE/EXPLAIN headers
+    sections = re.split(r'\n?(?:VERBAL|CODE|EXPLAIN)\s*:\s*\n?', raw, flags=re.IGNORECASE)
 
     if len(sections) >= 4:
-        verbal = sections[1].strip()
+        verbal = _clean_behavioral(sections[1].strip())
         code = sections[2].strip()
-        explain = sections[3].strip()
+        explain = _clean_behavioral(sections[3].strip())
     elif len(sections) >= 3:
-        verbal = sections[1].strip()
+        verbal = _clean_behavioral(sections[1].strip())
         code = sections[2].strip()
     else:
-        # Strategy 2: Extract code blocks (```...```)
+        # Strategy 2: Extract ```code blocks```
         code_blocks = re.findall(r'```[\w]*\n(.*?)```', raw, re.DOTALL)
         if code_blocks:
             code = "\n\n".join(block.strip() for block in code_blocks)
-            # Everything outside code blocks
             outside = re.sub(r'```[\w]*\n.*?```', '|||CB|||', raw, flags=re.DOTALL)
             text_parts = [p.strip() for p in outside.split('|||CB|||') if p.strip()]
             all_text = _clean_behavioral("\n".join(text_parts))
-            # Split into verbal (first 2-3 sentences) and explain (rest)
             sentences = re.split(r'(?<=[.!?])\s+', all_text)
             if len(sentences) > 3:
                 verbal = " ".join(sentences[:3])
@@ -254,23 +255,48 @@ def _parse_technical_response(raw: str) -> dict:
             else:
                 verbal = all_text
         else:
-            # Strategy 3: Look for indented code (4+ spaces)
+            # Strategy 3: Look for code-like lines (def/class/import/SELECT/for/if with indentation)
             lines = raw.split("\n")
-            code_lines = []
-            text_lines = []
+            code_lines, text_lines = [], []
+            in_code = False
             for line in lines:
-                if line.startswith("    ") or line.startswith("\t"):
+                is_code_line = (
+                    line.startswith("    ") or line.startswith("\t") or
+                    re.match(r'^(def |class |import |from |SELECT |INSERT |CREATE |for |if |while |return )', line.strip())
+                )
+                if is_code_line:
+                    in_code = True
+                    code_lines.append(line)
+                elif in_code and line.strip() == "":
                     code_lines.append(line)
                 else:
-                    if code_lines and line.strip() == "":
-                        code_lines.append(line)
-                    else:
-                        text_lines.append(line)
+                    in_code = False
+                    text_lines.append(line)
             if code_lines:
                 code = "\n".join(code_lines).strip()
                 verbal = _clean_behavioral("\n".join(text_lines))
             else:
                 verbal = _clean_behavioral(raw)
+
+    # Clean code: remove ``` fences if still present
+    code = re.sub(r'^```[\w]*\n?', '', code)
+    code = re.sub(r'\n?```$', '', code)
+
+    # Ensure verbal doesn't contain code
+    if verbal and ('def ' in verbal or 'import ' in verbal or '```' in verbal):
+        # Verbal got contaminated with code — extract just the natural text
+        clean_lines = [l for l in verbal.split('\n')
+                       if not l.strip().startswith(('def ', 'class ', 'import ', 'from ', '```', '#!', '    '))]
+        verbal = _clean_behavioral("\n".join(clean_lines))
+
+    # Cap verbal length
+    if verbal and len(verbal) > 400:
+        sentences = re.split(r'(?<=[.!?])\s+', verbal)
+        verbal = " ".join(sentences[:3])
+
+    # Fallback verbal
+    if not verbal or len(verbal) < 10:
+        verbal = "Let me walk you through my approach for this problem."
 
     # Clean code fences
     code = re.sub(r'^```[\w]*\n?', '', code)

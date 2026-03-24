@@ -30,6 +30,11 @@ DIRECT_PATTERNS_START = [
     "what attracted you", "what motivates you",
     "what experience do you",
     "do you have any questions",
+    "write a", "implement a", "code a",
+    "explain the difference", "explain how",
+    "what is the time complexity", "what is the space complexity",
+    "what is the difference between",
+    "solve this", "solve the",
 ]
 
 # Patterns that can appear anywhere in the text

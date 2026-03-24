@@ -184,9 +184,13 @@ def generate_response(
         return _parse_technical_response(raw)
     else:
         verbal = _clean_behavioral(raw)
-        if len(verbal) > 400:
-            sentences = re.split(r'(?<=[.!?])\s+', verbal)
-            verbal = " ".join(sentences[:5])
+        if len(verbal) > 450:
+            # Cut at last sentence boundary before 450 chars
+            cut = verbal[:450].rfind(". ")
+            if cut > 100:
+                verbal = verbal[:cut + 1]
+            else:
+                verbal = verbal[:450].rsplit(" ", 1)[0] + "."
         return {
             "type": "behavioral",
             "verbal": verbal,

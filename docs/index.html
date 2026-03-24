@@ -3,179 +3,544 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Live Assistant — Real-time Interview AI Coach</title>
+<title>Live Assistant — Real-time AI Interview Coach</title>
+<meta name="description" content="Ace every interview. Real-time transcription, AI-powered answers, and technical code generation — all running locally on your Mac.">
 <style>
-  :root{--bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#e6edf3;--dim:#7d8590;--accent:#7c6aef;--green:#3fb950;--yellow:#d29922;--blue:#58a6ff}
-  *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:-apple-system,'SF Pro',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
-  .container{max-width:900px;margin:0 auto;padding:0 24px}
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-  /* Hero */
-  .hero{text-align:center;padding:80px 0 60px}
-  .hero h1{font-size:48px;font-weight:800;letter-spacing:-1.5px;margin-bottom:16px;background:linear-gradient(135deg,var(--accent),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-  .hero p{font-size:20px;color:var(--dim);max-width:600px;margin:0 auto 32px}
-  .hero-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-  .btn{padding:12px 28px;border-radius:10px;font-size:15px;font-weight:600;text-decoration:none;transition:all .2s;display:inline-block;border:none;cursor:pointer}
-  .btn-primary{background:var(--accent);color:#fff}
-  .btn-primary:hover{filter:brightness(1.15)}
-  .btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}
-  .btn-outline:hover{border-color:var(--accent)}
+  :root {
+    --white: #fafafa;
+    --black: #0a0a0a;
+    --gray-50: #f5f5f7;
+    --gray-100: #e8e8ed;
+    --gray-200: #d2d2d7;
+    --gray-400: #86868b;
+    --gray-600: #6e6e73;
+    --gray-800: #1d1d1f;
+    --blue: #2997ff;
+    --blue-dark: #0071e3;
+    --purple: #7c6aef;
+    --green: #30d158;
+    --card-bg: rgba(255,255,255,0.72);
+    --glass: rgba(255,255,255,0.5);
+  }
 
-  /* Demo image */
-  .demo{margin:40px 0;border-radius:12px;overflow:hidden;border:1px solid var(--border);background:var(--surface);padding:20px;text-align:center}
-  .demo-placeholder{background:var(--bg);border-radius:8px;padding:60px;color:var(--dim);font-size:14px}
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
-  /* Features */
-  .features{padding:60px 0}
-  .features h2{text-align:center;font-size:32px;margin-bottom:40px;font-weight:700}
-  .feature-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-  .feature-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px}
-  .feature-card .icon{font-size:24px;margin-bottom:8px}
-  .feature-card h3{font-size:15px;margin-bottom:6px}
-  .feature-card p{font-size:13px;color:var(--dim);line-height:1.5}
-  .feature-card.pro{border-color:var(--accent);position:relative}
-  .feature-card.pro::after{content:"PRO";position:absolute;top:10px;right:10px;background:var(--accent);color:#fff;font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700}
+  html { scroll-behavior: smooth; }
 
-  /* Pricing */
-  .pricing{padding:60px 0;text-align:center}
-  .pricing h2{font-size:32px;margin-bottom:40px;font-weight:700}
-  .pricing-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:700px;margin:0 auto}
-  .price-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px;text-align:left}
-  .price-card.featured{border-color:var(--accent);box-shadow:0 0 30px rgba(124,106,239,.15)}
-  .price-card h3{font-size:20px;margin-bottom:4px}
-  .price-card .price{font-size:36px;font-weight:800;margin:12px 0}
-  .price-card .price span{font-size:14px;font-weight:400;color:var(--dim)}
-  .price-card ul{list-style:none;margin:16px 0;font-size:13px}
-  .price-card ul li{padding:4px 0;color:var(--dim)}
-  .price-card ul li::before{content:"✓ ";color:var(--green)}
-  .price-card ul li.no::before{content:"— ";color:var(--border)}
-  .price-card ul li.no{color:var(--border)}
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--white);
+    color: var(--gray-800);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
 
-  /* How it works */
-  .how{padding:60px 0}
-  .how h2{text-align:center;font-size:32px;margin-bottom:40px;font-weight:700}
-  .steps{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px}
-  .step{text-align:center;padding:20px}
-  .step .num{width:36px;height:36px;border-radius:50%;background:var(--accent);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;margin-bottom:12px}
-  .step h3{font-size:15px;margin-bottom:6px}
-  .step p{font-size:13px;color:var(--dim)}
+  /* === NAV === */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    background: rgba(250,250,250,0.8);
+    border-bottom: 0.5px solid rgba(0,0,0,0.08);
+    transition: all 0.3s ease;
+  }
+  .nav-inner {
+    max-width: 1024px; margin: 0 auto;
+    padding: 14px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .nav-logo { font-size: 18px; font-weight: 700; color: var(--gray-800); text-decoration: none; letter-spacing: -0.5px; }
+  .nav-links { display: flex; gap: 28px; align-items: center; }
+  .nav-links a { font-size: 13px; color: var(--gray-600); text-decoration: none; transition: color 0.2s; font-weight: 500; }
+  .nav-links a:hover { color: var(--gray-800); }
+  .nav-cta {
+    background: var(--blue-dark); color: #fff !important; padding: 8px 18px;
+    border-radius: 980px; font-size: 13px; font-weight: 500;
+    transition: all 0.3s ease;
+  }
+  .nav-cta:hover { background: var(--blue); transform: scale(1.02); }
 
-  /* Footer */
-  .footer{padding:40px 0;border-top:1px solid var(--border);text-align:center;color:var(--dim);font-size:12px}
+  /* === SECTIONS === */
+  section { padding: 120px 24px; }
+  .container { max-width: 980px; margin: 0 auto; }
 
-  @media(max-width:640px){
-    .hero h1{font-size:32px}
-    .feature-grid,.pricing-grid,.steps{grid-template-columns:1fr}
+  /* === HERO === */
+  .hero {
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+    padding-top: 60px;
+    background: linear-gradient(180deg, var(--white) 0%, var(--gray-50) 100%);
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::after {
+    content: '';
+    position: absolute; top: 20%; left: 50%; transform: translateX(-50%);
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(124,106,239,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-eyebrow {
+    font-size: 16px; font-weight: 500; color: var(--purple);
+    letter-spacing: -0.2px;
+    margin-bottom: 16px;
+    opacity: 0; animation: fadeUp 0.8s ease 0.2s forwards;
+  }
+  .hero h1 {
+    font-size: clamp(44px, 7vw, 72px);
+    font-weight: 800;
+    letter-spacing: -3px;
+    line-height: 1.05;
+    margin-bottom: 20px;
+    color: var(--black);
+    opacity: 0; animation: fadeUp 0.8s ease 0.4s forwards;
+  }
+  .hero h1 .gradient {
+    background: linear-gradient(135deg, var(--purple), var(--blue));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .hero p {
+    font-size: 19px; line-height: 1.5;
+    color: var(--gray-600);
+    max-width: 520px; margin: 0 auto 36px;
+    font-weight: 400; letter-spacing: -0.2px;
+    opacity: 0; animation: fadeUp 0.8s ease 0.6s forwards;
+  }
+  .hero-actions {
+    display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
+    opacity: 0; animation: fadeUp 0.8s ease 0.8s forwards;
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 14px 28px;
+    border-radius: 980px;
+    font-size: 16px; font-weight: 500;
+    text-decoration: none;
+    transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+    cursor: pointer; border: none;
+    letter-spacing: -0.2px;
+  }
+  .btn-primary { background: var(--blue-dark); color: #fff; }
+  .btn-primary:hover { background: var(--blue); transform: scale(1.03); box-shadow: 0 4px 20px rgba(0,113,227,0.3); }
+  .btn-secondary { background: transparent; color: var(--blue-dark); }
+  .btn-secondary:hover { color: var(--blue); }
+  .btn-secondary::after { content: ' ›'; font-size: 18px; }
+
+  .hero-visual {
+    margin-top: 60px;
+    width: 100%; max-width: 840px;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 20px 80px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.06);
+    opacity: 0; animation: fadeUp 1s ease 1s forwards;
+    position: relative;
+  }
+  .hero-visual-inner {
+    background: var(--black);
+    border-radius: 16px;
+    padding: 2px;
+  }
+  .mock-app {
+    background: #0d1117;
+    border-radius: 14px;
+    overflow: hidden;
+    font-family: 'SF Mono', Monaco, monospace;
+    font-size: 12px;
+  }
+  .mock-titlebar {
+    background: #161b22;
+    padding: 10px 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .mock-dot { width: 12px; height: 12px; border-radius: 50%; }
+  .mock-dot.r { background: #f85149; }
+  .mock-dot.y { background: #d29922; }
+  .mock-dot.g { background: #3fb950; }
+  .mock-titlebar span { color: #7d8590; font-size: 12px; margin-left: 8px; }
+  .mock-body { display: grid; grid-template-columns: 1fr 1fr; min-height: 260px; }
+  .mock-left, .mock-right { padding: 16px; }
+  .mock-left { border-right: 1px solid #30363d; }
+  .mock-label { color: #7d8590; font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px; }
+  .mock-line { color: #e6edf3; font-size: 12px; line-height: 2; opacity: 0; animation: typeIn 0.4s ease forwards; }
+  .mock-line.q { color: #d29922; font-weight: 600; }
+  .mock-line:nth-child(2) { animation-delay: 0.3s; }
+  .mock-line:nth-child(3) { animation-delay: 0.6s; }
+  .mock-line:nth-child(4) { animation-delay: 0.9s; }
+  .mock-line:nth-child(5) { animation-delay: 1.2s; }
+  .mock-resp-label { color: #3fb950; font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+  .mock-resp { color: #e6edf3; font-size: 13px; line-height: 1.7; font-family: 'Inter', sans-serif; opacity: 0; animation: typeIn 0.6s ease 1.5s forwards; }
+  .mock-tag { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 600; text-transform: uppercase; background: rgba(88,166,255,0.12); color: #58a6ff; margin-bottom: 10px; opacity: 0; animation: typeIn 0.4s ease 1.3s forwards; }
+
+  @keyframes typeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* === FEATURES === */
+  .features { background: var(--gray-50); }
+  .section-label {
+    text-align: center; font-size: 14px; font-weight: 600;
+    color: var(--purple); text-transform: uppercase;
+    letter-spacing: 0.8px; margin-bottom: 12px;
+  }
+  .section-title {
+    text-align: center;
+    font-size: clamp(32px, 5vw, 48px);
+    font-weight: 700; letter-spacing: -2px;
+    margin-bottom: 12px;
+  }
+  .section-sub {
+    text-align: center;
+    font-size: 18px; color: var(--gray-600);
+    max-width: 500px; margin: 0 auto 60px;
+    line-height: 1.5; letter-spacing: -0.2px;
+  }
+
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .f-card {
+    background: var(--card-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 0.5px solid rgba(0,0,0,0.06);
+    border-radius: 20px;
+    padding: 28px;
+    transition: all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+    position: relative;
+    overflow: hidden;
+  }
+  .f-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.06);
+  }
+  .f-card .icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    margin-bottom: 14px;
+    background: linear-gradient(135deg, rgba(124,106,239,0.1), rgba(41,151,255,0.1));
+  }
+  .f-card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; letter-spacing: -0.3px; }
+  .f-card p { font-size: 13px; color: var(--gray-600); line-height: 1.55; }
+  .f-card .pro-badge {
+    position: absolute; top: 16px; right: 16px;
+    background: linear-gradient(135deg, var(--purple), var(--blue));
+    color: #fff; font-size: 9px; font-weight: 700;
+    padding: 3px 8px; border-radius: 6px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+
+  /* === HOW === */
+  .how-steps {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px;
+    margin-top: 60px;
+  }
+  .step { text-align: center; }
+  .step-num {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: var(--black);
+    color: #fff;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 700;
+    margin-bottom: 16px;
+  }
+  .step h3 { font-size: 18px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.3px; }
+  .step p { font-size: 14px; color: var(--gray-600); line-height: 1.5; }
+
+  /* === PRICING === */
+  .pricing { background: var(--gray-50); }
+  .price-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 20px; max-width: 720px; margin: 0 auto;
+  }
+  .p-card {
+    background: #fff;
+    border: 0.5px solid rgba(0,0,0,0.08);
+    border-radius: 20px;
+    padding: 36px;
+    transition: all 0.4s ease;
+  }
+  .p-card:hover { box-shadow: 0 12px 40px rgba(0,0,0,0.06); }
+  .p-card.featured {
+    background: var(--black); color: #fff;
+    border: none;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    transform: scale(1.02);
+  }
+  .p-card.featured:hover { transform: scale(1.04); }
+  .p-card h3 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+  .p-card .price {
+    font-size: 48px; font-weight: 800; letter-spacing: -2px;
+    margin: 12px 0;
+  }
+  .p-card .price span { font-size: 16px; font-weight: 400; opacity: 0.5; }
+  .p-card ul { list-style: none; margin: 20px 0; }
+  .p-card ul li {
+    padding: 6px 0; font-size: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .p-card ul li::before { content: ""; width: 18px; height: 18px; border-radius: 50%; background: var(--green); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='8' fill='none'%3E%3Cpath stroke='%23fff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 4.5L3.5 7 9 1'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: center; }
+  .p-card ul li.no { opacity: 0.35; }
+  .p-card ul li.no::before { background-color: var(--gray-200); background-image: none; }
+  .featured ul li::before { background-color: var(--green); }
+  .p-card .p-btn {
+    display: block; text-align: center;
+    padding: 14px; border-radius: 12px;
+    font-size: 15px; font-weight: 600;
+    text-decoration: none;
+    margin-top: 20px;
+    transition: all 0.3s ease;
+  }
+  .p-card .p-btn.outline { background: var(--gray-50); color: var(--gray-800); }
+  .p-card .p-btn.outline:hover { background: var(--gray-100); }
+  .p-card.featured .p-btn { background: #fff; color: var(--black); }
+  .p-card.featured .p-btn:hover { transform: scale(1.02); box-shadow: 0 4px 16px rgba(255,255,255,0.2); }
+
+  /* === PAYMENT === */
+  .pay-box {
+    max-width: 440px; margin: 48px auto 0;
+    background: #fff;
+    border: 0.5px solid rgba(0,0,0,0.08);
+    border-radius: 20px;
+    padding: 36px;
+    text-align: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+  }
+  .pay-box h3 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+  .pay-box .pay-sub { font-size: 14px; color: var(--gray-600); margin-bottom: 20px; }
+  .zelle-num {
+    background: var(--gray-50);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .zelle-label { font-size: 11px; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+  .zelle-number {
+    font-size: 28px; font-weight: 700;
+    letter-spacing: 1px;
+    font-variant-numeric: tabular-nums;
+    background: linear-gradient(135deg, #6b11cb, var(--blue));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .pay-steps {
+    text-align: left; font-size: 14px; color: var(--gray-600); line-height: 1.8;
+  }
+  .pay-steps strong { color: var(--gray-800); }
+
+  /* === FOOTER === */
+  footer {
+    padding: 40px 24px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--gray-400);
+    border-top: 0.5px solid rgba(0,0,0,0.06);
+  }
+  footer a { color: var(--gray-600); text-decoration: none; }
+  footer a:hover { color: var(--gray-800); }
+
+  /* === ANIMATIONS === */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .reveal {
+    opacity: 0; transform: translateY(30px);
+    transition: all 0.7s cubic-bezier(0.25, 0.1, 0.25, 1);
+  }
+  .reveal.visible {
+    opacity: 1; transform: translateY(0);
+  }
+
+  /* === RESPONSIVE === */
+  @media (max-width: 768px) {
+    section { padding: 80px 20px; }
+    .feature-grid, .how-steps { grid-template-columns: 1fr; }
+    .price-grid { grid-template-columns: 1fr; }
+    .nav-links a:not(.nav-cta) { display: none; }
+    .mock-body { grid-template-columns: 1fr; }
+    .mock-left { border-right: none; border-bottom: 1px solid #30363d; }
   }
 </style>
 </head>
 <body>
 
-<div class="container">
-  <div class="hero">
-    <h1>Live Assistant</h1>
-    <p>Real-time AI interview coach. Transcribes conversations, detects questions, and generates spoken answers — all in your browser.</p>
-    <div class="hero-btns">
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <a href="#" class="nav-logo">Live Assistant</a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="#pricing">Pricing</a>
+      <a href="https://github.com/CherishChenCherish/live-assistant" target="_blank">GitHub</a>
+      <a href="https://github.com/CherishChenCherish/live-assistant/releases" class="nav-cta">Download</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-eyebrow">Real-time AI Interview Coach</div>
+    <h1>Ace every interview.<br><span class="gradient">Effortlessly.</span></h1>
+    <p>Live transcription, intelligent question detection, and AI-generated answers — all running privately on your Mac.</p>
+    <div class="hero-actions">
       <a href="https://github.com/CherishChenCherish/live-assistant/releases" class="btn btn-primary">Download for Mac</a>
-      <a href="#pricing" class="btn btn-outline">View Pricing</a>
+      <a href="#how" class="btn btn-secondary">See how it works</a>
+    </div>
+
+    <div class="hero-visual">
+      <div class="hero-visual-inner">
+        <div class="mock-app">
+          <div class="mock-titlebar">
+            <div class="mock-dot r"></div>
+            <div class="mock-dot y"></div>
+            <div class="mock-dot g"></div>
+            <span>Live Assistant — Listening</span>
+          </div>
+          <div class="mock-body">
+            <div class="mock-left">
+              <div class="mock-label">Live Transcript</div>
+              <div class="mock-line">09:41:02  Welcome to the interview.</div>
+              <div class="mock-line">09:41:15  Let's start with the first question.</div>
+              <div class="mock-line q">09:41:22  Tell me about yourself and your experience with AI.</div>
+              <div class="mock-line">09:42:05  That's great. Let me follow up on that.</div>
+              <div class="mock-line q">09:42:12  How would you design a recommendation system?</div>
+            </div>
+            <div class="mock-right">
+              <div class="mock-tag">behavioral</div>
+              <div class="mock-resp-label">Say This</div>
+              <div class="mock-resp">I'm currently pursuing my MBA at Yale, focusing on the intersection of technology and finance. I founded an AI startup building NLP solutions, and before that I was at Gate.io analyzing crypto market data. I'm passionate about applying machine learning to solve real business problems.</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
+</section>
 
-  <div class="demo">
-    <div class="demo-placeholder">
-      [ Screenshot / GIF of the app in action ]<br>
-      <small>Real-time transcription on the left, AI-generated responses on the right</small>
-    </div>
-  </div>
+<!-- FEATURES -->
+<section class="features" id="features">
+  <div class="container">
+    <div class="section-label reveal">Features</div>
+    <div class="section-title reveal">Everything you need to<br>interview with confidence.</div>
+    <div class="section-sub reveal">Free real-time transcription. Upgrade to Pro for AI-powered answers.</div>
 
-  <div class="features">
-    <h2>Features</h2>
     <div class="feature-grid">
-      <div class="feature-card">
+      <div class="f-card reveal">
         <div class="icon">🎙</div>
-        <h3>Real-time Transcription</h3>
-        <p>Powered by Whisper. Captures audio from your mic, Zoom, Teams, or any meeting app. Auto-detects which app you're using.</p>
+        <h3>Live Transcription</h3>
+        <p>Whisper-powered, runs locally. Auto-detects Zoom, Teams, Meet and selects the right audio device.</p>
       </div>
-      <div class="feature-card pro">
-        <div class="icon">💬</div>
-        <h3>AI Response Generation</h3>
-        <p>Detects real interview questions and generates natural spoken English answers tailored to your background.</p>
-      </div>
-      <div class="feature-card pro">
-        <div class="icon">💻</div>
-        <h3>Technical Interview Support</h3>
-        <p>For coding questions: generates working code + verbal explanation + complexity analysis. Python, SQL, system design.</p>
-      </div>
-      <div class="feature-card pro">
-        <div class="icon">📎</div>
-        <h3>Context Upload</h3>
-        <p>Upload your resume, job description, and interviewer info. The AI uses this to craft personalized, relevant answers.</p>
-      </div>
-      <div class="feature-card pro">
-        <div class="icon">🔮</div>
-        <h3>Follow-up Predictions</h3>
-        <p>Predicts the interviewer's likely next question so you can prepare ahead.</p>
-      </div>
-      <div class="feature-card pro">
-        <div class="icon">🆘</div>
-        <h3>SOS Button</h3>
-        <p>Stuck? Press S for a natural stalling phrase to buy yourself thinking time.</p>
-      </div>
-      <div class="feature-card pro">
-        <div class="icon">📷</div>
-        <h3>Screenshot OCR</h3>
-        <p>Ctrl+V a screenshot of the coding problem. OCR extracts the text and generates a solution.</p>
-      </div>
-      <div class="feature-card">
+      <div class="f-card reveal">
         <div class="icon">⏱</div>
         <h3>Pace Monitor</h3>
-        <p>Tracks your speaking speed (WPM) and answer length. Stay in the sweet spot — not too fast, not too slow.</p>
+        <p>Real-time WPM tracking with visual cues. Stay in the sweet spot — not too fast, not too slow.</p>
+      </div>
+      <div class="f-card reveal">
+        <div class="icon">💾</div>
+        <h3>Session Recording</h3>
+        <p>Every transcript and Q&A pair is auto-saved. Review and improve after each interview.</p>
+      </div>
+      <div class="f-card reveal">
+        <span class="pro-badge">Pro</span>
+        <div class="icon">💬</div>
+        <h3>AI Responses</h3>
+        <p>Smart detection filters lecture from real questions. Generates natural spoken answers tailored to your background.</p>
+      </div>
+      <div class="f-card reveal">
+        <span class="pro-badge">Pro</span>
+        <div class="icon">💻</div>
+        <h3>Code Generation</h3>
+        <p>For technical interviews: working code, verbal walkthrough, and complexity analysis. Python, SQL, system design.</p>
+      </div>
+      <div class="f-card reveal">
+        <span class="pro-badge">Pro</span>
+        <div class="icon">📎</div>
+        <h3>Context Upload</h3>
+        <p>Upload your resume, JD, and interviewer info. AI crafts personalized, role-specific answers.</p>
+      </div>
+      <div class="f-card reveal">
+        <span class="pro-badge">Pro</span>
+        <div class="icon">🔮</div>
+        <h3>Follow-up Predictions</h3>
+        <p>Anticipates the interviewer's next question so you can prepare your thoughts ahead of time.</p>
+      </div>
+      <div class="f-card reveal">
+        <span class="pro-badge">Pro</span>
+        <div class="icon">📷</div>
+        <h3>Screenshot OCR</h3>
+        <p>Ctrl+V a screenshot of any coding problem. OCR extracts the text and generates a solution instantly.</p>
+      </div>
+      <div class="f-card reveal">
+        <span class="pro-badge">Pro</span>
+        <div class="icon">🆘</div>
+        <h3>SOS Mode</h3>
+        <p>Stuck? Press S for a natural stalling phrase that buys you time to think without awkward silence.</p>
       </div>
     </div>
   </div>
+</section>
 
-  <div class="how">
-    <h2>How It Works</h2>
-    <div class="steps">
-      <div class="step">
-        <div class="num">1</div>
-        <h3>Download & Launch</h3>
-        <p>Download the app, run it. Opens in your browser at localhost. No account needed.</p>
+<!-- HOW IT WORKS -->
+<section id="how">
+  <div class="container">
+    <div class="section-label reveal">How it works</div>
+    <div class="section-title reveal">Up and running<br>in three steps.</div>
+
+    <div class="how-steps">
+      <div class="step reveal">
+        <div class="step-num">1</div>
+        <h3>Download & Install</h3>
+        <p>Clone the repo, run the install script. Everything stays on your machine — fully private.</p>
       </div>
-      <div class="step">
-        <div class="num">2</div>
-        <h3>Upload & Configure</h3>
-        <p>Upload your resume and JD. Select your audio device. The app auto-detects your meeting software.</p>
+      <div class="step reveal">
+        <div class="step-num">2</div>
+        <h3>Upload Your Materials</h3>
+        <p>Drop in your resume and job description. Select your audio device — we auto-detect your meeting app.</p>
       </div>
-      <div class="step">
-        <div class="num">3</div>
-        <h3>Interview with Confidence</h3>
-        <p>See real-time transcription and AI-generated answers. Use keyboard shortcuts for seamless control.</p>
+      <div class="step reveal">
+        <div class="step-num">3</div>
+        <h3>Interview with AI</h3>
+        <p>See live transcription and AI-generated answers in real time. Use keyboard shortcuts for seamless control.</p>
       </div>
     </div>
   </div>
+</section>
 
-  <div class="pricing" id="pricing">
-    <h2>Pricing</h2>
-    <div class="pricing-grid">
-      <div class="price-card">
+<!-- PRICING -->
+<section class="pricing" id="pricing">
+  <div class="container">
+    <div class="section-label reveal">Pricing</div>
+    <div class="section-title reveal">Start free.<br>Go Pro when you're ready.</div>
+    <div class="section-sub reveal">No subscriptions. One payment, one year of Pro features.</div>
+
+    <div class="price-grid">
+      <div class="p-card reveal">
         <h3>Free</h3>
         <div class="price">$0</div>
         <ul>
           <li>Real-time transcription</li>
-          <li>Meeting app auto-detection</li>
+          <li>Meeting app detection</li>
           <li>Speaking pace monitor</li>
-          <li>Session recording & export</li>
+          <li>Session recording</li>
           <li class="no">AI response generation</li>
-          <li class="no">Technical code answers</li>
+          <li class="no">Code generation</li>
           <li class="no">Follow-up predictions</li>
+          <li class="no">Context upload</li>
           <li class="no">Screenshot OCR</li>
-          <li class="no">SOS stalling phrases</li>
-          <li class="no">Context upload (Resume/JD)</li>
+          <li class="no">SOS mode</li>
         </ul>
-        <a href="https://github.com/CherishChenCherish/live-assistant/releases" class="btn btn-outline" style="width:100%;text-align:center;margin-top:12px">Download Free</a>
+        <a href="https://github.com/CherishChenCherish/live-assistant/releases" class="p-btn outline">Download Free</a>
       </div>
-      <div class="price-card featured">
+      <div class="p-card featured reveal">
         <h3>Pro</h3>
         <div class="price">$29 <span>/ year</span></div>
         <ul>
@@ -183,39 +548,56 @@
           <li>AI response generation</li>
           <li>Technical code answers</li>
           <li>Follow-up predictions</li>
-          <li>Keyword hints mode</li>
+          <li>Keyword hints</li>
           <li>Screenshot OCR</li>
           <li>Screen monitoring</li>
-          <li>SOS stalling phrases</li>
-          <li>Context upload (Resume/JD)</li>
+          <li>SOS mode</li>
+          <li>Context upload</li>
           <li>Priority updates</li>
         </ul>
-        <a href="#pay" class="btn btn-primary" style="width:100%;text-align:center;margin-top:12px">Get Pro</a>
+        <a href="#pay" class="p-btn">Get Pro</a>
       </div>
     </div>
 
-    <div id="pay" style="margin-top:40px;max-width:500px;margin-left:auto;margin-right:auto">
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px;text-align:center">
-        <h3 style="margin-bottom:12px">Payment</h3>
-        <p style="font-size:14px;color:var(--dim);margin-bottom:16px">Send <strong style="color:var(--text)">$29</strong> via Zelle, then email your receipt to receive your activation code.</p>
-        <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px">
-          <div style="font-size:12px;color:var(--dim);margin-bottom:4px">Zelle</div>
-          <div style="font-size:24px;font-weight:700;font-family:'SF Mono',monospace;letter-spacing:1px;color:var(--blue)">206-532-5712</div>
-        </div>
-        <div style="font-size:13px;color:var(--dim);line-height:1.6">
-          <strong style="color:var(--text)">Steps:</strong><br>
-          1. Send $29 via Zelle to <strong>206-532-5712</strong><br>
-          2. Email your receipt + preferred email to <a href="mailto:cherishchen2510@gmail.com" style="color:var(--blue)">cherishchen2510@gmail.com</a><br>
-          3. Receive your activation code within 24 hours
-        </div>
+    <div class="pay-box reveal" id="pay">
+      <h3>Get your Pro license</h3>
+      <p class="pay-sub">One payment. Instant activation. No subscription.</p>
+      <div class="zelle-num">
+        <div class="zelle-label">Pay with Zelle</div>
+        <div class="zelle-number">206-532-5712</div>
+      </div>
+      <div class="pay-steps">
+        <strong>1.</strong> Send $29 via Zelle to <strong>206-532-5712</strong><br>
+        <strong>2.</strong> Email your receipt to <a href="mailto:cherishchen2510@gmail.com" style="color:var(--blue-dark)">cherishchen2510@gmail.com</a><br>
+        <strong>3.</strong> Receive your activation code within 24 hours
       </div>
     </div>
   </div>
+</section>
 
-  <div class="footer">
-    <p>Built by Cherish Chen &mdash; Yale SOM &mdash; <a href="https://github.com/CherishChenCherish/live-assistant" style="color:var(--blue)">GitHub</a></p>
-  </div>
-</div>
+<!-- FOOTER -->
+<footer>
+  <p>Built by <a href="https://github.com/CherishChenCherish">Cherish Chen</a> &nbsp;·&nbsp; Yale School of Management &nbsp;·&nbsp; <a href="https://github.com/CherishChenCherish/live-assistant">View on GitHub</a></p>
+</footer>
 
+<!-- SCROLL ANIMATIONS -->
+<script>
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach((entry, i) => {
+    if (entry.isIntersecting) {
+      setTimeout(() => entry.target.classList.add('visible'), i * 80);
+      observer.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+// Nav shadow on scroll
+window.addEventListener('scroll', () => {
+  document.querySelector('nav').style.boxShadow =
+    window.scrollY > 20 ? '0 1px 8px rgba(0,0,0,0.06)' : 'none';
+});
+</script>
 </body>
 </html>

@@ -20,8 +20,7 @@ def load_file(filepath: str) -> str:
     if suffix == ".docx":
         return _load_docx(p)
 
-    # Fallback: try reading as text
-    return p.read_text(encoding="utf-8", errors="ignore")
+    raise ValueError(f"Unsupported file type: {suffix}. Supported: .txt, .md, .pdf, .docx")
 
 
 def _load_pdf(path: Path) -> str:

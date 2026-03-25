@@ -9,13 +9,28 @@ No server needed — codes are self-validating.
 """
 
 import hashlib
+import os
 import hmac
 import json
 import time
 from pathlib import Path
 
-# Secret key for generating codes — change this to your own!
-_SECRET = b"live-assistant-pro-2026-cherish"
+# Secret key loaded from env or file; auto-generated on first run
+def _load_secret() -> bytes:
+    env_key = os.environ.get("LA_LICENSE_SECRET")
+    if env_key:
+        return env_key.encode()
+    key_file = Path(__file__).parent / ".license_key"
+    if key_file.exists():
+        return key_file.read_text().strip().encode()
+    import secrets
+    new_key = secrets.token_hex(32)
+    key_file.write_text(new_key)
+    key_file.chmod(0o600)
+    return new_key.encode()
+
+
+_SECRET = _load_secret()
 
 LICENSE_FILE = Path(__file__).parent / ".license"
 

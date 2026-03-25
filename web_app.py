@@ -24,7 +24,29 @@ from faster_whisper import WhisperModel
 from context_loader import load_context, context_summary
 from license import activate, deactivate, get_license_status, has_feature
 from question_detector import QuestionDetector
-from responder import generate_response, regenerate_response, detect_question_type
+from responder import generate_response, generate_response_streaming, regenerate_response, detect_question_type
+
+
+def _ollama_generate(model: str, prompt: str, timeout: int = 20, max_tokens: int = 256) -> str:
+    """Call Ollama HTTP API."""
+    import urllib.request
+    try:
+        payload = json.dumps({
+            "model": model,
+            "prompt": prompt,
+            "stream": False,
+            "options": {"num_predict": max_tokens},
+        }).encode()
+        req = urllib.request.Request(
+            "http://localhost:11434/api/generate",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            data = json.loads(resp.read())
+            return data.get("response", "").strip()
+    except Exception:
+        return ""
 
 
 def generate_followups(ollama_model: str, question: str, response_verbal: str) -> list[str]:
@@ -34,15 +56,11 @@ def generate_followups(ollama_model: str, question: str, response_verbal: str) -
         f'the interviewer might ask next. Output ONLY the questions, one per line.\n\n'
         f'Q: {question}\nA: {response_verbal}\n\nFollow-up questions:'
     )
-    try:
-        result = subprocess.run(
-            ["ollama", "run", ollama_model, prompt],
-            capture_output=True, text=True, timeout=20,
-        )
-        lines = [l.strip().lstrip('0123456789.-) ') for l in result.stdout.strip().split('\n') if l.strip()]
+    raw = _ollama_generate(ollama_model, prompt, timeout=20)
+    if raw:
+        lines = [l.strip().lstrip('0123456789.-) ') for l in raw.split('\n') if l.strip()]
         return lines[:3]
-    except Exception:
-        return []
+    return []
 
 
 def generate_keywords(ollama_model: str, question: str, context: str) -> list[str]:
@@ -52,15 +70,25 @@ def generate_keywords(ollama_model: str, question: str, context: str) -> list[st
         f'(2-4 words each). No full sentences. One per line.\n\n'
         f'Background: {context[:500]}\n\nQ: {question}\n\nKey points:'
     )
-    try:
-        result = subprocess.run(
-            ["ollama", "run", ollama_model, prompt],
-            capture_output=True, text=True, timeout=15,
-        )
-        lines = [l.strip().lstrip('0123456789.-•) ') for l in result.stdout.strip().split('\n') if l.strip()]
-        return lines[:8]
-    except Exception:
-        return []
+    raw = _ollama_generate(ollama_model, prompt, timeout=15)
+    if raw:
+        return _clean_keywords(raw)
+    return []
+
+
+def _clean_keywords(raw: str) -> list[str]:
+    """Extract clean keyword phrases from LLM output."""
+    lines = []
+    skip_prefixes = ('here are', 'key', 'sure', 'okay', 'of course', 'following', 'below', 'these')
+    for line in raw.split('\n'):
+        line = line.strip().lstrip('0123456789.-\u2022*\u2192\u25b8) ').strip()
+        if not line or len(line) > 50 or len(line) < 3:
+            continue
+        if any(line.lower().startswith(p) for p in skip_prefixes):
+            continue
+        line = line.rstrip('.:,')
+        lines.append(line)
+    return lines[:6]
 
 app = FastAPI(title="Live Assistant")
 BASE_DIR = Path(__file__).parent
@@ -297,42 +325,52 @@ class Session:
             recent = list(self.transcript[-10:])
             prev = list(self.responses)
 
-        result = generate_response(
+        # Create placeholder response immediately so user sees the card
+        r_entry = {
+            "time": datetime.now().strftime("%H:%M:%S"),
+            "question": question,
+            "type": q_type,
+            "verbal": "",
+            "code": None,
+            "explain": None,
+            "followups": [],
+            "keywords": [],
+        }
+        with self.lock:
+            self.responses.append(r_entry)
+            r_index = len(self.responses) - 1
+        self._send({"type": "response", **r_entry})
+
+        # Stream tokens to frontend
+        def on_token(partial):
+            self._send({"type": "stream", "index": r_index, "text": partial})
+
+        result = generate_response_streaming(
             ollama_model=self.ollama_model,
             question=question,
             conversation_lines=recent,
             context_materials=self.context_materials,
             previous_responses=prev,
+            on_token=on_token,
+            question_type=q_type,
         )
 
-        # Generate follow-up predictions & keyword hints in parallel
-        followups = []
-        keywords = []
-
-        def _get_followups():
-            nonlocal followups
-            followups = generate_followups(self.ollama_model, question, result.get("verbal", ""))
-
-        def _get_keywords():
-            nonlocal keywords
-            keywords = generate_keywords(self.ollama_model, question, self.context_materials)
-
-        t1 = threading.Thread(target=_get_followups)
-        t2 = threading.Thread(target=_get_keywords)
-        t1.start(); t2.start()
-        t1.join(timeout=20); t2.join(timeout=15)
-
-        r_entry = {
-            "time": datetime.now().strftime("%H:%M:%S"),
-            "question": question,
-            **result,
-            "followups": followups,
-            "keywords": keywords,
-        }
+        # Send final parsed response
         with self.lock:
-            self.responses.append(r_entry)
-        self._send({"type": "response", **r_entry})
+            self.responses[r_index].update(result)
+        self._send({"type": "response_final", "index": r_index, **result})
         self._send({"type": "status", "state": "listening"})
+
+        # Generate follow-up predictions & keyword hints in background
+        def _send_extras():
+            followups = generate_followups(self.ollama_model, question, result.get("verbal", ""))
+            keywords = generate_keywords(self.ollama_model, question, self.context_materials)
+            with self.lock:
+                self.responses[r_index]["followups"] = followups
+                self.responses[r_index]["keywords"] = keywords
+            self._send({"type": "extras", "index": r_index, "followups": followups, "keywords": keywords})
+
+        threading.Thread(target=_send_extras, daemon=True).start()
 
     def do_regenerate(self, index=-1):
         with self.lock:
@@ -459,12 +497,29 @@ async def get_devices():
     }
 
 
+ALLOWED_EXTENSIONS = {".txt", ".md", ".pdf", ".docx", ".doc"}
+MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10MB
+
+
 @app.post("/api/upload")
 async def upload_file(file: UploadFile):
-    dest = UPLOAD_DIR / file.filename
-    with open(dest, "wb") as f:
-        shutil.copyfileobj(file.file, f)
-    return {"filename": file.filename, "path": str(dest)}
+    # Sanitize filename: strip path components, allow only safe chars
+    safe_name = Path(file.filename).name.replace("..", "").strip()
+    if not safe_name:
+        return {"error": "Invalid filename"}
+
+    suffix = Path(safe_name).suffix.lower()
+    if suffix not in ALLOWED_EXTENSIONS:
+        return {"error": f"Unsupported file type: {suffix}. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}"}
+
+    # Read with size limit
+    content = await file.read()
+    if len(content) > MAX_UPLOAD_SIZE:
+        return {"error": f"File too large ({len(content) // 1024 // 1024}MB). Max: 10MB"}
+
+    dest = UPLOAD_DIR / safe_name
+    dest.write_bytes(content)
+    return {"filename": safe_name, "path": str(dest)}
 
 
 @app.get("/api/uploads")
@@ -607,12 +662,29 @@ async def websocket_endpoint(ws: WebSocket):
 async def _forward_messages(ws: WebSocket, session: Session):
     while not session.stop_event.is_set():
         try:
-            msg = await asyncio.wait_for(session.ws_queue.get(), timeout=0.5)
+            msg = await asyncio.wait_for(session.ws_queue.get(), timeout=0.05)
             await ws.send_json(msg)
         except asyncio.TimeoutError:
             continue
         except Exception:
             break
+
+
+def warmup_ollama(model: str = "gemma3:4b"):
+    """Pre-load Ollama model into memory on startup."""
+    import urllib.request
+    try:
+        payload = json.dumps({"model": model, "prompt": "hi", "stream": False, "options": {"num_predict": 1}}).encode()
+        req = urllib.request.Request("http://localhost:11434/api/generate", data=payload, headers={"Content-Type": "application/json"})
+        urllib.request.urlopen(req, timeout=30)
+        print(f"  Ollama model '{model}' warmed up")
+    except Exception as e:
+        print(f"  Ollama warmup failed: {e}")
+
+
+@app.on_event("startup")
+async def startup_event():
+    threading.Thread(target=warmup_ollama, daemon=True).start()
 
 
 if __name__ == "__main__":

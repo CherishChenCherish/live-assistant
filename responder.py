@@ -5,8 +5,10 @@ Supports two response modes:
 - TECHNICAL: code + explanation (algorithms, system design, SQL, etc.)
 """
 
+import json
 import re
 import subprocess
+import urllib.request
 
 # --- Question Type Detection ---
 TECHNICAL_KEYWORDS = [
@@ -70,12 +72,13 @@ BEHAVIORAL_RULES = """
 ## Response Rules (Behavioral/General)
 1. Output ONLY the spoken response — no labels, no markdown headers, no bullet points
 2. Natural spoken English — contractions OK, minimal filler
-3. Length: 3-6 sentences. Concise but substantive
-4. Start with a direct answer, then support with specifics
-5. For "tell me about a time" questions, use STAR: Situation → Task → Action → Result
+3. Length: 3-4 sentences MAXIMUM. Target 30 seconds of speech (~80 words)
+4. Start with a direct answer, then ONE specific supporting detail
+5. For STAR questions: Situation (1 sentence) → Action+Result (1-2 sentences)
 6. Sound confident and genuine, not rehearsed
 7. Reference specific experiences from profile/context when relevant
-8. Do NOT invent experiences"""
+8. Do NOT invent experiences
+9. CRITICAL: Keep response SHORT enough to read in 5 seconds during a live interview"""
 
 TECHNICAL_RULES = """
 ## Response Rules (Technical)
@@ -136,7 +139,7 @@ def build_response_prompt(
 
     prev_section = ""
     if previous_responses:
-        prev_parts = [f"Q: {r['question']}\nA: {r['response']}" for r in previous_responses[-3:]]
+        prev_parts = [f"Q: {r['question']}\nA: {r.get('verbal', r.get('response', ''))}" for r in previous_responses[-3:]]
         prev_section = "Previous responses (do NOT repeat):\n" + "\n---\n".join(prev_parts)
 
     return RESPONSE_PROMPT.format(
@@ -148,16 +151,104 @@ def build_response_prompt(
 
 
 def _call_ollama(ollama_model: str, prompt: str, timeout: int = 60) -> str:
+    """Call Ollama via HTTP API (non-streaming)."""
     try:
-        result = subprocess.run(
-            ["ollama", "run", ollama_model, prompt],
-            capture_output=True, text=True, timeout=timeout,
+        payload = json.dumps({
+            "model": ollama_model,
+            "prompt": prompt,
+            "stream": False,
+            "options": {"num_predict": 512},
+        }).encode()
+        req = urllib.request.Request(
+            "http://localhost:11434/api/generate",
+            data=payload,
+            headers={"Content-Type": "application/json"},
         )
-        return result.stdout.strip()
-    except subprocess.TimeoutExpired:
-        return "[Response timed out — press Regenerate to retry]"
-    except Exception as e:
-        return f"[Error: {e}]"
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            data = json.loads(resp.read())
+            return data.get("response", "").strip()
+    except Exception:
+        try:
+            result = subprocess.run(
+                ["ollama", "run", ollama_model, prompt],
+                capture_output=True, text=True, timeout=timeout,
+            )
+            return result.stdout.strip()
+        except subprocess.TimeoutExpired:
+            return "[Response timed out — press Regenerate to retry]"
+        except Exception as e:
+            return f"[Error: {e}]"
+
+
+def _call_ollama_stream(ollama_model: str, prompt: str, callback=None, timeout: int = 60) -> str:
+    """Call Ollama via HTTP API with streaming. Calls callback(partial_text) as tokens arrive."""
+    try:
+        payload = json.dumps({
+            "model": ollama_model,
+            "prompt": prompt,
+            "stream": True,
+            "options": {"num_predict": 512},
+        }).encode()
+        req = urllib.request.Request(
+            "http://localhost:11434/api/generate",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        full_text = ""
+        token_count = 0
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            for line in resp:
+                if not line.strip():
+                    continue
+                chunk = json.loads(line)
+                token = chunk.get("response", "")
+                full_text += token
+                token_count += 1
+                if callback and token_count % 4 == 0:
+                    callback(full_text)
+                if chunk.get("done"):
+                    break
+        if callback:
+            callback(full_text)
+        return full_text.strip()
+    except Exception:
+        return _call_ollama(ollama_model, prompt, timeout)
+
+
+def generate_response_streaming(
+    ollama_model: str,
+    question: str,
+    conversation_lines: list[dict],
+    context_materials: str = "",
+    previous_responses: list[dict] | None = None,
+    on_token=None,
+    question_type: str | None = None,
+) -> dict:
+    """Generate a response with streaming. on_token(partial_text) called as tokens arrive."""
+    q_type = question_type or detect_question_type(question)
+
+    system = build_system_prompt(context_materials, q_type)
+    user = build_response_prompt(question, conversation_lines, previous_responses, q_type)
+    full_prompt = f"{system}\n\n---\n\n{user}"
+
+    raw = _call_ollama_stream(ollama_model, full_prompt, callback=on_token)
+
+    if q_type == "technical":
+        return _parse_technical_response(raw)
+    else:
+        verbal = _clean_behavioral(raw)
+        if len(verbal) > 350:
+            cut = verbal[:350].rfind(". ")
+            if cut > 80:
+                verbal = verbal[:cut + 1]
+            else:
+                verbal = verbal[:350].rsplit(" ", 1)[0] + "."
+        return {
+            "type": "behavioral",
+            "verbal": verbal,
+            "code": None,
+            "explain": None,
+        }
 
 
 def generate_response(
@@ -337,4 +428,15 @@ def _clean_behavioral(text: str) -> str:
         if s.startswith("*") and not s.startswith("* "):
             s = s.strip("*").strip()
         cleaned.append(s)
-    return " ".join(cleaned)
+    result = " ".join(cleaned)
+    # Remove LLM placeholder artifacts
+    result = re.sub(r"\[.*?(?:Company|Role|Position|Team).*?\]", "the company", result)
+    result = re.sub(r"\[mention[^\]]*\]", "", result)
+    result = re.sub(r"\[.*?research[^\]]*\]", "", result)
+    result = re.sub(r"\[[^\]]*(?:specific|beforehand|goal|area|initiative)[^\]]*\]", "", result)
+    # Remove wrapping quotes
+    result = result.strip('"')
+    # Clean up artifacts: double spaces, trailing prepositions, empty parens
+    result = re.sub(r'\s{2,}', ' ', result)
+    result = re.sub(r'\s+(because|about|to|for|with|in)\s*([.!,])', r'\2', result)
+    return result.strip()

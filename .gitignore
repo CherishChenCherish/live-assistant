@@ -10,3 +10,5 @@ sessions/*
 .env
 .DS_Store
 test_mic.py
+.license_key
+testsprite_tests/

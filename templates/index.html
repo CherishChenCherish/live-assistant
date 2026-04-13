@@ -947,7 +947,8 @@ function updR(m){
 
 function mkCard(r,idx,cur){
   const c=document.createElement('div');c.className='rc'+(cur?' cur':'');
-  let h=`<div class="rq"><strong>Q:</strong> ${esc(r.question)}</div><span class="rtype ${r.type||'behavioral'}">${r.type||'behavioral'}</span>`;
+  const qt=r.q_type||r.type||'behavioral';
+  let h=`<div class="rq"><strong>Q:</strong> ${esc(r.question)}</div><span class="rtype ${qt}">${qt}</span>`;
 
   if(r.keywords&&r.keywords.length){
     h+=`<div class="sec-label kw-l">Key Points</div><div class="kw-list">${r.keywords.map(k=>`<span class="kw">${esc(k)}</span>`).join('')}</div>`;
@@ -956,7 +957,7 @@ function mkCard(r,idx,cur){
   const verbalContent = r.verbal||r.response||'';
   h+=`<div class="sec-label verbal-l">Say This</div><div class="verbal">${verbalContent ? esc(verbalContent) : '<span class="cursor-pulse">\u25CF</span> Generating...'}</div>`;
 
-  if(r.type==='technical'&&r.code){
+  if(qt==='technical'&&r.code){
     h+=`<div class="sec-label code-l">Code</div><div class="code-box">${esc(r.code)}</div>`;
   }
 

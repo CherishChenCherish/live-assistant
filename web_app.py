@@ -142,7 +142,7 @@ class Session:
         self.stop_event = threading.Event()
         self.pause_event = threading.Event()
         self.question_detector = QuestionDetector(ollama_model=ollama_model)
-        self.ws_queue = asyncio.Queue()
+        self.ws_queue = queue.Queue()  # thread-safe queue for cross-thread messaging
 
         self.screen_monitor_active = False
         self._capture_thread = None
@@ -219,7 +219,7 @@ class Session:
     def _send(self, msg: dict):
         try:
             self.ws_queue.put_nowait(msg)
-        except asyncio.QueueFull:
+        except queue.Full:
             pass
 
     def _capture_loop(self):
@@ -318,48 +318,56 @@ class Session:
             self._send({"type": "paywall", "question": question})
             return
 
-        q_type = detect_question_type(question)
-        self._send({"type": "status", "state": "generating", "question_type": q_type})
+        try:
+            q_type = detect_question_type(question)
+            self._send({"type": "status", "state": "generating", "question_type": q_type})
 
-        with self.lock:
-            recent = list(self.transcript[-10:])
-            prev = list(self.responses)
+            with self.lock:
+                recent = list(self.transcript[-10:])
+                prev = list(self.responses)
 
-        # Create placeholder response immediately so user sees the card
-        r_entry = {
-            "time": datetime.now().strftime("%H:%M:%S"),
-            "question": question,
-            "type": q_type,
-            "verbal": "",
-            "code": None,
-            "explain": None,
-            "followups": [],
-            "keywords": [],
-        }
-        with self.lock:
-            self.responses.append(r_entry)
-            r_index = len(self.responses) - 1
-        self._send({"type": "response", **r_entry})
+            # Create placeholder response immediately so user sees the card
+            r_entry = {
+                "time": datetime.now().strftime("%H:%M:%S"),
+                "question": question,
+                "q_type": q_type,
+                "verbal": "",
+                "code": None,
+                "explain": None,
+                "followups": [],
+                "keywords": [],
+            }
+            with self.lock:
+                self.responses.append(r_entry)
+                r_index = len(self.responses) - 1
+            self._send({"type": "response", **r_entry})
 
-        # Stream tokens to frontend
-        def on_token(partial):
-            self._send({"type": "stream", "index": r_index, "text": partial})
+            # Stream tokens to frontend
+            def on_token(partial):
+                self._send({"type": "stream", "index": r_index, "text": partial})
 
-        result = generate_response_streaming(
-            ollama_model=self.ollama_model,
-            question=question,
-            conversation_lines=recent,
-            context_materials=self.context_materials,
-            previous_responses=prev,
-            on_token=on_token,
-            question_type=q_type,
-        )
+            result = generate_response_streaming(
+                ollama_model=self.ollama_model,
+                question=question,
+                conversation_lines=recent,
+                context_materials=self.context_materials,
+                previous_responses=prev,
+                on_token=on_token,
+                question_type=q_type,
+            )
 
-        # Send final parsed response
-        with self.lock:
-            self.responses[r_index].update(result)
-        self._send({"type": "response_final", "index": r_index, **result})
-        self._send({"type": "status", "state": "listening"})
+            # Send final parsed response — rename result's "type" to "q_type" to avoid
+            # overwriting the message routing "type" key
+            final_data = {k: v for k, v in result.items() if k != "type"}
+            final_data["q_type"] = result.get("type", q_type)
+            with self.lock:
+                self.responses[r_index].update(result)
+            self._send({"type": "response_final", "index": r_index, **final_data})
+            self._send({"type": "status", "state": "listening"})
+        except Exception as e:
+            print(f"  Response generation error: {e}", flush=True)
+            self._send({"type": "error", "message": f"Response generation failed: {e}"})
+            self._send({"type": "status", "state": "listening"})
 
         # Generate follow-up predictions & keyword hints in background
         def _send_extras():
@@ -394,11 +402,13 @@ class Session:
         with self.lock:
             self.responses[index].update(result)
 
+        regen_data = {k: v for k, v in result.items() if k != "type"}
+        regen_data["q_type"] = result.get("type", "behavioral")
         self._send({
             "type": "regenerated",
             "index": index,
             "question": r["question"],
-            **result,
+            **regen_data,
         })
         self._send({"type": "status", "state": "listening"})
 
@@ -660,14 +670,19 @@ async def websocket_endpoint(ws: WebSocket):
 
 
 async def _forward_messages(ws: WebSocket, session: Session):
+    loop = asyncio.get_event_loop()
     while not session.stop_event.is_set():
         try:
-            msg = await asyncio.wait_for(session.ws_queue.get(), timeout=0.05)
+            # Poll thread-safe queue from async context
+            msg = await loop.run_in_executor(None, lambda: session.ws_queue.get(timeout=0.05))
             await ws.send_json(msg)
-        except asyncio.TimeoutError:
+        except queue.Empty:
             continue
-        except Exception:
+        except WebSocketDisconnect:
             break
+        except Exception as e:
+            print(f"  WS forward error: {e}", flush=True)
+            continue
 
 
 def warmup_ollama(model: str = "gemma3:4b"):
